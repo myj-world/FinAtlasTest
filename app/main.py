@@ -1,23 +1,28 @@
 from flask import Flask, render_template, jsonify
 import os
 import requests
-from app.routes import bp
 import pandas as pd
-from flask import send_from_directory
+from app.routes import bp
 
 app = Flask(__name__)
 app.register_blueprint(bp, url_prefix='/api')
 
+
 @app.route('/')
 def index():
+    # AI API handling
     api_key = os.getenv('AI_API_KEY')
     greeting = None
-    error = None
+    ai_status = None
+    ai_error = None
+
     if not api_key:
-        error = 'API key missing'
+        ai_status = 'API key missing'
     else:
         try:
-            # Call the AI model API to get a greeting
+            # NOTE: This demo currently uses the public Anthropics endpoint from earlier phases.
+            # The project plan moves to Gemini in a later phase. For now we attempt a simple POST
+            # to demonstrate connectivity; failures are captured and shown to the user.
             response = requests.post(
                 'https://api.anthropic.com/v1/messages',
                 headers={
@@ -29,27 +34,36 @@ def index():
                     'model': 'claude-sonnet-4-6',
                     'max_tokens_to_sample': 1000,
                     'messages': [{ 'role': 'user', 'content': 'Generate a friendly greeting' }]
-                }
+                },
+                timeout=8,
             )
             response.raise_for_status()
             data = response.json()
-            # Extract greeting from response content
-            content = data.get('completion', '')
+            # Extract greeting from response content (best-effort)
+            content = data.get('completion') or data.get('output') or ''
             greeting = content if content else 'Hello from AI!'
+            ai_status = 'OK'
+        except requests.exceptions.RequestException as e:
+            ai_status = 'Error'
+            ai_error = f'AI API call failed: {str(e)}'
         except Exception as e:
-            error = f'AI API call failed: {str(e)}'
+            ai_status = 'Error'
+            ai_error = f'AI processing failed: {str(e)}'
 
-    # Attempt to load sample CSV
+    # CSV loading
+    csv_status = None
     csv_error = None
     csv_html = None
     try:
         csv_path = os.path.join(os.path.dirname(__file__), 'data', 'sample.csv')
         df = pd.read_csv(csv_path)
-        csv_html = df.to_html(classes='table', index=False)
+        csv_html = df.to_html(classes='table table-striped', index=False)
+        csv_status = 'Loaded'
     except Exception as e:
+        csv_status = 'Error'
         csv_error = f'CSV load failed: {str(e)}'
 
-    # Check Supabase connectivity
+    # Supabase connectivity check (minimal)
     supabase_status = None
     supabase_error = None
     supabase_url = os.getenv('SUPABASE_URL')
@@ -63,19 +77,34 @@ def index():
                 'apikey': supabase_key,
                 'Authorization': f'Bearer {supabase_key}'
             }, timeout=5)
-            # If we get any HTTP response it means we reached the Supabase REST endpoint.
-            if resp.status_code >= 200 and resp.status_code < 500:
+            if 200 <= resp.status_code < 500:
                 supabase_status = f'Reachable (HTTP {resp.status_code})'
             else:
                 supabase_status = f'Unexpected response (HTTP {resp.status_code})'
-        except Exception as e:
+        except requests.exceptions.RequestException as e:
+            supabase_status = 'Error'
             supabase_error = f'Supabase connectivity check failed: {str(e)}'
+        except Exception as e:
+            supabase_status = 'Error'
+            supabase_error = f'Supabase check failed: {str(e)}'
 
-    return render_template('index.html', greeting=greeting, error=error, csv_html=csv_html, csv_error=csv_error, supabase_status=supabase_status, supabase_error=supabase_error)
+    return render_template(
+        'index.html',
+        greeting=greeting,
+        ai_status=ai_status,
+        ai_error=ai_error,
+        csv_html=csv_html,
+        csv_status=csv_status,
+        csv_error=csv_error,
+        supabase_status=supabase_status,
+        supabase_error=supabase_error,
+    )
+
 
 @app.route('/health')
 def health():
     return jsonify({'status': 'healthy'})
 
+
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    app.run(host='0.0.0.0', port=int(os.getenv('PORT', 5000)), debug=True)

@@ -1,91 +1,146 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>FinAtlas Greeting</title>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>FinAtlas — Status Panel</title>
+    <style>
+        body { font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; background:#f7fafc; color:#0f172a; padding:24px; }
+        .container { max-width:960px; margin:0 auto; }
+        header h1 { margin:0 0 8px 0; font-size:24px; }
+        .card { background:white; border:1px solid #e6eef8; border-radius:8px; padding:16px; box-shadow:0 1px 2px rgba(2,6,23,0.04); margin-bottom:16px; }
+        .status-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:12px; }
+        .status { padding:12px; border-radius:6px; background:#f1f5f9; }
+        .ok { color: #065f46; font-weight:600; }
+        .error { color:#b91c1c; font-weight:600; }
+        .missing { color:#92400e; font-weight:600; }
+        table.table { width:100%; border-collapse:collapse; }
+        table.table th, table.table td { text-align:left; padding:8px; border-bottom:1px solid #eef2f7; }
+        footer { margin-top:24px; font-size:13px; color:#475569; }
+        .muted { color:#627487; }
+    </style>
 </head>
 <body>
-    <h1>FinAtlas AI Greeting</h1>
-    {% if error %}
-        <p style="color:red;">{{ error }}</p>
-    {% else %}
-        <p>{{ greeting }}</p>
-    {% endif %}
-    
-    <hr>
-    <h2>Sample CSV</h2>
-    {% if csv_error %}
-        <p style="color:red;">{{ csv_error }}</p>
-    {% elif csv_html %}
-        {{ csv_html | safe }}
-    {% else %}
-        <p>No CSV loaded.</p>
-    {% endif %}
+<div class="container">
+    <header>
+        <h1>FinAtlas</h1>
+        <div class="muted">AI greeting, CSV preview, and connectivity status</div>
+    </header>
 
-    <hr>
-    <h2>Status Panel</h2>
-    <div id="status-panel">
-        <p>Flask: <span id="flask-status">Checking...</span></p>
-        <p>AI API: <span id="ai-status">Checking...</span></p>
-        <p>CSV Loading: <span id="csv-status">Pending</span></p>
-        <p>Supabase: <span id="supabase-status">Pending</span></p>
-        <p>Supabase Detail: <span id="supabase-detail">Checking...</span></p>
-    </div>
+    <section class="card">
+        <h2 style="margin-top:0">AI Greeting</h2>
+        {% if ai_status == 'API key missing' %}
+            <p class="error">API key missing</p>
+            <p class="muted">Set AI_API_KEY in your environment (use the Secrets panel in hosted preview).</p>
+        {% elif ai_status == 'OK' and greeting %}
+            <p>{{ greeting }}</p>
+        {% elif ai_status == 'Error' and ai_error %}
+            <p class="error">AI error: {{ ai_error }}</p>
+        {% else %}
+            <p class="muted">AI status: {{ ai_status or 'Unknown' }}</p>
+        {% endif %}
+    </section>
 
-    <script>
-        async function fetchHealth() {
-            try {
-                const response = await fetch('/health');
-                if (response.ok) {
-                    document.getElementById('flask-status').textContent = 'Healthy';
-                } else {
-                    document.getElementById('flask-status').textContent = 'Unhealthy';
-                }
-            } catch (e) {
-                document.getElementById('flask-status').textContent = 'Error';
-            }
-        }
+    <section class="card">
+        <h2 style="margin-top:0">Sample CSV</h2>
+        {% if csv_status == 'Loaded' and csv_html %}
+            <div>{{ csv_html | safe }}</div>
+        {% elif csv_status == 'Error' and csv_error %}
+            <p class="error">CSV error: {{ csv_error }}</p>
+        {% else %}
+            <p class="muted">No CSV loaded.</p>
+        {% endif %}
+    </section>
 
-        async function checkAiApi() {
-            // update CSV status from server-rendered flags
-            const csvStatus = {{ 'true' if csv_html else 'false' }};
-            document.getElementById('csv-status').textContent = csvStatus ? 'Loaded' : 'Not loaded';
+    <section class="card">
+        <h2 style="margin-top:0">Status Panel</h2>
+        <div class="status-grid">
+            <div class="status">
+                <div>Flask</div>
+                <div id="flask-status" class="muted">Checking...</div>
+            </div>
 
-            // Supabase status from server
-            const supStatus = `{{ supabase_status or '' }}`;
-            const supError = `{{ supabase_error or '' }}`;
-            if (supError) {
-                document.getElementById('supabase-status').textContent = 'Error';
-                document.getElementById('supabase-detail').textContent = supError;
-            } else if (supStatus) {
-                document.getElementById('supabase-status').textContent = 'OK';
-                document.getElementById('supabase-detail').textContent = supStatus;
+            <div class="status">
+                <div>AI API</div>
+                <div id="ai-status">
+                    {% if ai_status == 'OK' %}
+                        <span class="ok">OK</span>
+                    {% elif ai_status == 'API key missing' %}
+                        <span class="missing">API key missing</span>
+                    {% elif ai_status == 'Error' %}
+                        <span class="error">Error</span>
+                    {% else %}
+                        <span class="muted">{{ ai_status or 'Unknown' }}</span>
+                    {% endif %}
+                </div>
+                {% if ai_error %}
+                    <div class="muted">Detail: {{ ai_error }}</div>
+                {% endif %}
+            </div>
+
+            <div class="status">
+                <div>CSV Loading</div>
+                <div id="csv-status">
+                    {% if csv_status == 'Loaded' %}
+                        <span class="ok">Loaded</span>
+                    {% elif csv_status == 'Error' %}
+                        <span class="error">Error</span>
+                    {% else %}
+                        <span class="muted">{{ csv_status or 'Unknown' }}</span>
+                    {% endif %}
+                </div>
+                {% if csv_error %}
+                    <div class="muted">Detail: {{ csv_error }}</div>
+                {% endif %}
+            </div>
+
+            <div class="status">
+                <div>Supabase</div>
+                <div id="supabase-status">
+                    {% if supabase_status and 'Missing' in supabase_status %}
+                        <span class="missing">{{ supabase_status }}</span>
+                    {% elif supabase_status and 'Reachable' in supabase_status %}
+                        <span class="ok">{{ supabase_status }}</span>
+                    {% elif supabase_status == 'Error' %}
+                        <span class="error">Error</span>
+                    {% else %}
+                        <span class="muted">{{ supabase_status or 'Unknown' }}</span>
+                    {% endif %}
+                </div>
+                {% if supabase_error %}
+                    <div class="muted">Detail: {{ supabase_error }}</div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div style="margin-top:12px; font-size:13px; color:#475569;">The health endpoint is at <code>/health</code>. The API blueprint also exposes <code>/api/health</code>.</div>
+    </section>
+
+    <footer>
+        <div>To run locally: pip install -r requirements.txt && python app/main.py</div>
+        <div>Or use gunicorn: gunicorn app.main:app --bind 0.0.0.0:$PORT --workers 2</div>
+    </footer>
+</div>
+
+<script>
+    async function fetchHealth() {
+        try {
+            const res = await fetch('/health');
+            if (res.ok) {
+                document.getElementById('flask-status').textContent = 'Healthy';
+                document.getElementById('flask-status').className = 'ok';
             } else {
-                document.getElementById('supabase-status').textContent = 'Unknown';
-                document.getElementById('supabase-detail').textContent = '';
+                document.getElementById('flask-status').textContent = 'Unhealthy';
+                document.getElementById('flask-status').className = 'error';
             }
-
-            // Simple check: call the backend '/' and see if greeting or error is returned
-            // Simple check: call the backend '/' and see if greeting or error is returned
-            try {
-                const response = await fetch('/');
-                if (response.ok) {
-                    const text = await response.text();
-                    if (text.includes('API key missing')) {
-                        document.getElementById('ai-status').textContent = 'API key missing';
-                    } else {
-                        document.getElementById('ai-status').textContent = 'OK';
-                    }
-                } else {
-                    document.getElementById('ai-status').textContent = 'Error';
-                }
-            } catch (e) {
-                document.getElementById('ai-status').textContent = 'Error';
-            }
+        } catch (e) {
+            document.getElementById('flask-status').textContent = 'Error';
+            document.getElementById('flask-status').className = 'error';
         }
+    }
 
-        fetchHealth();
-        checkAiApi();
-    </script>
+    // No secrets are exposed to the browser — we only read textual status fields rendered by the server.
+    fetchHealth();
+</script>
 </body>
 </html>
