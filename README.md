@@ -1,7 +1,34 @@
-# FinAtlas — Stack Test
+# FinAtlas Flask App
 
-A minimal integration test for Python, Flask, Pandas, Supabase, and a hosted AI model API.
+This is the initial phase of the FinAtlas project, a minimal Flask web app.
 
-**Tests:** AI-generated greeting, CSV viewing, database connectivity, and Flask health status.
+## Phase 1: Basic Flask Setup and Health Check Endpoint
 
-Configure credentials using environment variables, install dependencies, and run the Flask application. See `.env.example` for required configuration.
+- A simple Flask backend is set up.
+- A health-check endpoint at `/health` returns status "healthy".
+
+## Running the App
+
+1. Install dependencies:
+   ```
+   pip install -r requirements.txt
+   ```
+
+2. Run the Flask app:
+   ```
+   python app/main.py
+   ```
+
+3. Visit `http://localhost:5000/health` to see the health status.
+
+## Environment Variables
+
+- Use the `.env.example` file as a template.
+- Add actual API keys and credentials in the Secrets panel.
+
+## Next Steps
+
+- Integrate AI model API to generate greetings.
+- Load and display CSV data.
+- Connect to Supabase and verify connectivity.
+- Implement status panel on the frontend.

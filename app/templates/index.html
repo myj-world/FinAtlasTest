@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>FinAtlas Greeting</title>
+</head>
+<body>
+    <h1>FinAtlas AI Greeting</h1>
+    {% if error %}
+        <p style="color:red;">{{ error }}</p>
+    {% else %}
+        <p>{{ greeting }}</p>
+    {% endif %}
+</body>
+</html>
