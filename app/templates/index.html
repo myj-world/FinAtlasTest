@@ -13,12 +13,23 @@
     {% endif %}
     
     <hr>
+    <h2>Sample CSV</h2>
+    {% if csv_error %}
+        <p style="color:red;">{{ csv_error }}</p>
+    {% elif csv_html %}
+        {{ csv_html | safe }}
+    {% else %}
+        <p>No CSV loaded.</p>
+    {% endif %}
+
+    <hr>
     <h2>Status Panel</h2>
     <div id="status-panel">
         <p>Flask: <span id="flask-status">Checking...</span></p>
         <p>AI API: <span id="ai-status">Checking...</span></p>
         <p>CSV Loading: <span id="csv-status">Pending</span></p>
         <p>Supabase: <span id="supabase-status">Pending</span></p>
+        <p>Supabase Detail: <span id="supabase-detail">Checking...</span></p>
     </div>
 
     <script>
@@ -36,6 +47,25 @@
         }
 
         async function checkAiApi() {
+            // update CSV status from server-rendered flags
+            const csvStatus = {{ 'true' if csv_html else 'false' }};
+            document.getElementById('csv-status').textContent = csvStatus ? 'Loaded' : 'Not loaded';
+
+            // Supabase status from server
+            const supStatus = `{{ supabase_status or '' }}`;
+            const supError = `{{ supabase_error or '' }}`;
+            if (supError) {
+                document.getElementById('supabase-status').textContent = 'Error';
+                document.getElementById('supabase-detail').textContent = supError;
+            } else if (supStatus) {
+                document.getElementById('supabase-status').textContent = 'OK';
+                document.getElementById('supabase-detail').textContent = supStatus;
+            } else {
+                document.getElementById('supabase-status').textContent = 'Unknown';
+                document.getElementById('supabase-detail').textContent = '';
+            }
+
+            // Simple check: call the backend '/' and see if greeting or error is returned
             // Simple check: call the backend '/' and see if greeting or error is returned
             try {
                 const response = await fetch('/');
