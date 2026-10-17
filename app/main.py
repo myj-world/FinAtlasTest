@@ -11,7 +11,7 @@ app.register_blueprint(bp, url_prefix='/api')
 @app.route('/')
 def index():
     # AI API handling
-    api_key = os.getenv('AI_API_KEY')
+    api_key = os.getenv('GOOGLE_API_KEY') or os.getenv('AI_API_KEY')
     greeting = None
     ai_status = None
     ai_error = None
@@ -20,28 +20,17 @@ def index():
         ai_status = 'API key missing'
     else:
         try:
-            # NOTE: This demo currently uses the public Anthropics endpoint from earlier phases.
-            # The project plan moves to Gemini in a later phase. For now we attempt a simple POST
-            # to demonstrate connectivity; failures are captured and shown to the user.
+            model = os.getenv('GEMINI_MODEL', 'gemini-2.0-flash')
             response = requests.post(
-                'https://api.anthropic.com/v1/messages',
-                headers={
-                    'x-api-key': api_key,
-                    'Content-Type': 'application/json',
-                    'anthropic-version': '2023-06-01'
-                },
-                json={
-                    'model': 'claude-sonnet-4-6',
-                    'max_tokens_to_sample': 1000,
-                    'messages': [{ 'role': 'user', 'content': 'Generate a friendly greeting' }]
-                },
-                timeout=8,
+                f'https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent',
+                headers={'x-goog-api-key': api_key, 'Content-Type': 'application/json'},
+                json={'contents': [{'parts': [{'text': 'Write a short friendly greeting for FinAtlas, a finance app.'}]}]},
+                timeout=15,
             )
             response.raise_for_status()
             data = response.json()
-            # Extract greeting from response content (best-effort)
-            content = data.get('completion') or data.get('output') or ''
-            greeting = content if content else 'Hello from AI!'
+            parts = data['candidates'][0]['content']['parts']
+            greeting = ''.join(p.get('text', '') for p in parts).strip() or 'Hello from AI!'
             ai_status = 'OK'
         except requests.exceptions.RequestException as e:
             ai_status = 'Error'
