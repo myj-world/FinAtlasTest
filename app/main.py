@@ -17,13 +17,23 @@ def index():
         try:
             # Call the AI model API to get a greeting
             response = requests.post(
-                'https://api.example.com/generate_greeting',
-                headers={'Authorization': f'Bearer {api_key}'},
-                json={'prompt': 'Generate a friendly greeting'}
+                'https://api.anthropic.com/v1/messages',
+                headers={
+                    'x-api-key': api_key,
+                    'Content-Type': 'application/json',
+                    'anthropic-version': '2023-06-01'
+                },
+                json={
+                    'model': 'claude-sonnet-4-6',
+                    'max_tokens_to_sample': 1000,
+                    'messages': [{ 'role': 'user', 'content': 'Generate a friendly greeting' }]
+                }
             )
             response.raise_for_status()
             data = response.json()
-            greeting = data.get('greeting', 'Hello from AI!')
+            # Extract greeting from response content
+            content = data.get('completion', '')
+            greeting = content if content else 'Hello from AI!'
         except Exception as e:
             error = f'AI API call failed: {str(e)}'
 
